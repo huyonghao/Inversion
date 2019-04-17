@@ -18,26 +18,26 @@ import segyio
 ##########################################################################################
 # 参数修改在此处
 # top, bottom, trace_beg, trace_end = 1300, 1885, 0, 2191
-top, bottom, trace_beg, trace_end = 1300, 1885, 425, 426
-# top, bottom, trace_beg, trace_end = 1300, 1885, 1695, 1696
+# top, bottom, trace_beg, trace_end = 1300, 1885, 425, 426
+top, bottom, trace_beg, trace_end = 1300, 1885, 1695, 1696
 method = 1 # method{0:"conjugate", 1:"gauss_newton"}
 cov_lambda_method = 3 # method{0:"const_number", 1:"3well_data", 2:"3initial_data", 3:"3other_data"}
-cov_mat_ani = np.array([[8.8150617e-03, 1.4613373e-02, 6.5484757e-03],
-                        [1.4613373e-02, 3.2388340e-02, 1.4389173e-02],
-                        [6.5484757e-03, 1.4389173e-02, 8.0189579e-03]])
+cov_mat_ani = np.array([[7.6455076e-03, 7.3234964e-03, 5.0318266e-05],
+                        [7.3234964e-03, 8.2397042e-03, 1.5111740e-04],
+                        [5.0318266e-05, 1.5111740e-04, 1.0689176e-03]])
 print_process = 0 # method{0:"don't display", 1:"display"}
-sigma = np.array([0.00006, 0.0008, 0.0006])*20
+sigma = np.array([0.006, 0.006, 0.0002])
 ani_k_given = 0 # 为固定值时情况(取值不为0代表使用背景速度)
 gaussian_well = 50 # 高斯平滑时窗（背景速度平滑）
 standard = 5 # 高斯分布标准差
 trc = 0
 step = 1 # 迭代步长
-niter = 30 # iterative numbers
+niter = 10 # iterative numbers
 normal_method = 0 # 0表示不地震记录与子波标准化，1表示标准化
 ratio = 0.031088 # 真实记录振幅于子波振幅大小之比
 w_amp = 1 # 1为子波正常子波，-1为子波反转
-# data = pd.DataFrame(pd.read_csv("D:\\Physic_Model_Data\\line1_025.csv"))
-data = pd.DataFrame(pd.read_csv("D:\\Physic_Model_Data\\line1_05.csv"))
+data = pd.DataFrame(pd.read_csv("D:\\Physic_Model_Data\\line1_025.csv"))
+# data = pd.DataFrame(pd.read_csv("D:\\Physic_Model_Data\\line1_05.csv"))
 del data["Unnamed: 0"]
 
 ###########################################################################################
@@ -65,9 +65,9 @@ real_4_ori = segyio.tools.cube("D:\\Physic_Model_Data\\stack29-36.sgy")[0,:,:].T
 # real_4_ori = segyio.tools.cube("D:\\Physic_Model_Data\\cdp_stack45.sgy")[0,:,:].T
 
 # # 传入初始模型数据 0 各向异性
-model_0_ori = np.load("D:\\Physic_Model_Data\\coe0_blur.npy")
-model_1_ori = np.load("D:\\Physic_Model_Data\\coe1_blur_new.npy")
-model_2_ori = np.load("D:\\Physic_Model_Data\\coe2_blur.npy")
+model_0_ori = np.load("D:\\Physic_Model_Data\\line1_Vp.npy")
+model_1_ori = np.load("D:\\Physic_Model_Data\\line1_Vs.npy")
+model_2_ori = np.load("D:\\Physic_Model_Data\\line1_Rho.npy")
 
 # # # 传入不同角度子波数据
 wave_0 = np.loadtxt("F:\\Physic_Model_Data\\0_New Folder\\0_01_08.txt", skiprows=56)
@@ -182,14 +182,10 @@ t3 = np.random.normal(0, 1, dx)*0
 ani_Vp = data["Vp"]/1000+t1
 ani_Vs = data["Vs"]/1000+t2
 ani_rho = data["Rho"]+t3
-ani_epsilon = data["Epsilon"]
-ani_delta = data["Delta"]
-ani_gamma = data["Gamma"]
-ani_eta = ani_epsilon-ani_delta
-ani_k = (2*ani_Vs/ani_Vp)**2
-coe0 = ani_rho*ani_Vp
-coe1 = ani_rho*ani_Vs**2*np.exp(ani_eta/ani_k)
-coe2 = ani_Vp*np.exp(ani_epsilon)
+ani_k = (ani_Vs/ani_Vp)
+coe0 = ani_Vp
+coe1 = ani_Vs
+coe2 = ani_rho
 
 ############################################################################################
 # 反演单个参数的图像背景大小
@@ -256,7 +252,7 @@ else:
 ##########################################################################################################
 # Thomsen_zhang 横向各向同性 五个角度（贝叶斯用此）
 if ani_k_given==0:
-    ani_k = (2*ani_Vs.mean()/ani_Vp.mean())**2
+    ani_k = ani_k.mean()
 elif ani_k_given==1:
     ani_k = (np.array(ani_k)).reshape(-1, 1)[:-1]
 else:
@@ -270,7 +266,7 @@ else:
     # ax2 = fig.add_subplot(122)
     # ax2.plot(gaussian_window)
     # plt.show()
-coef1, coef2, coef3 = 1/2*np.ones((theta.shape)), -ani_k/2*np.sin(theta)**2, np.tan(theta)**2/2
+coef1, coef2, coef3 = (1+np.tan(theta)**2)/2, -8*iso_k**2*np.sin(theta)**2/2, (1-4*iso_k**2*np.sin(theta)**2)/2
 temp = np.ones((background.shape[0]-1, 1))
 coef1, coef2, coef3 = coef1*temp, coef2*temp, coef3*temp
 

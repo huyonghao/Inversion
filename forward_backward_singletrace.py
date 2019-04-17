@@ -22,20 +22,23 @@ import copy
 top, bottom = 1300, 1900
 method = 1 # method{0:"conjugate", 1:"gauss_newton"}
 cov_lambda_method = 3 # method{0:"const_number", 1:"3well_data", 2:"3initial_data", 3:"3other_data"}
-cov_mat_ani = np.array([[8.8150617e-03, 1.4613373e-02, 6.5484757e-03],
-                        [1.4613373e-02, 3.2388340e-02, 1.4389173e-02],
-                        [6.5484757e-03, 1.4389173e-02, 8.0189579e-03]])
-# cov_mat_ani = np.array([[0.06529396, 0.13624114, 0.01427237],
-#                         [0.13624114, 0.28814149, 0.03002454],
-#                         [0.01427237, 0.03002454, 0.0031487 ]])
+# cov_mat_ani = np.array([[8.8150617e-03, 1.4613373e-02, 6.5484757e-03],
+#                         [1.4613373e-02, 3.2388340e-02, 1.4389173e-02],
+#                         [6.5484757e-03, 1.4389173e-02, 8.0189579e-03]])
+# cov_mat_ani = np.array([[7.6455076e-03, 7.3234964e-03, 5.0318266e-05],
+#                         [7.3234964e-03, 8.2397042e-03, 1.5111740e-04],
+#                         [5.0318266e-05, 1.5111740e-04, 1.0689176e-03]])
+cov_mat_ani = np.array([[1, 0, 0],
+                        [0, 1, 0],
+                        [0, 0, 1]])
 print_process = 0 # method{0:"don't display", 1:"display"}
 # sigma = np.array([1, 1, 1])*0
-sigma = np.array([0.00016, 0.0004, 0.0006])
+sigma = np.array([100*0.4, 1, 1])*0.0001
 ani_k_given = 0 # 为固定值时情况(取值不为0代表使用背景速度)
 gaussian_well = 50 # 高斯平滑时窗（背景速度平滑）
 standard = 30 # 高斯分布标准差
 step = 1 # 迭代步长
-niter = 30 # iterative numbers
+niter = 10 # iterative numbers
 time_window = 50
 normal_method = 0 # 0表示不地震记录与子波标准化，1表示标准化
 ratio = 1 # 真实记录振幅于子波振幅大小之比
@@ -110,16 +113,16 @@ def cov_mat2(sigma, cov_mat):
 
 ##########################################################################################
 # 6 Zoeppritz 精确解表达式　全部时窗　
-# zoeppritz = forward.Zoeppritz(data["Vp"], data["Vs"], data["Rho"], theta_synthetic)
-# reflect_6 = zoeppritz.zoeppritz_exact_all()
-# reflect_6[np.isnan(reflect_6)] = 0
-# reflect_iso = reflect_6[0]
+zoeppritz = forward.Zoeppritz(data["Vp"], data["Vs"], data["Rho"], theta_synthetic)
+reflect_6 = zoeppritz.zoeppritz_exact_all()
+reflect_6[np.isnan(reflect_6)] = 0
+reflect_iso = reflect_6[0]
 
 # 11 Graebner 精确解表达式　全部时窗　获得反射系数
-vti_exact_reflct = forward.Graebner(data["Vp"]/1000, data["Vs"]/1000, data["Rho"], theta_synthetic, data["Epsilon"], data["Delta"], data["Gamma"])
-reflect_11 = vti_exact_reflct.vti_exact_all()
-reflect_11[np.isnan(reflect_11)] = 0
-reflect_ani = reflect_11[0]
+# vti_exact_reflct = forward.Graebner(data["Vp"]/1000, data["Vs"]/1000, data["Rho"], theta_synthetic, data["Epsilon"], data["Delta"], data["Gamma"])
+# reflect_11 = vti_exact_reflct.vti_exact_all()
+# reflect_11[np.isnan(reflect_11)] = 0
+# reflect_ani = reflect_11[0]
 
 # 反演单个参数的图像背景大小多道是二维图像单道是一维图像（此为单道）
 background = np.zeros((data.shape[0]))
@@ -134,17 +137,17 @@ W4_temp = convmtx(wave_4, background.shape[0]-1)
 W0_zero = np.zeros_like(W0_temp)
 
 # 子波褶积反射系数形成地震记录然后再提取不同角度
-real_0_ori = (W0_temp@reflect_ani)[:, 0]
-real_1_ori = (W1_temp@reflect_ani)[:, 1]
-real_2_ori = (W2_temp@reflect_ani)[:, 2]
-real_3_ori = (W3_temp@reflect_ani)[:, 3]
-real_4_ori = (W4_temp@reflect_ani)[:, 4]
+# real_0_ori = (W0_temp@reflect_ani)[:, 0]
+# real_1_ori = (W1_temp@reflect_ani)[:, 1]
+# real_2_ori = (W2_temp@reflect_ani)[:, 2]
+# real_3_ori = (W3_temp@reflect_ani)[:, 3]
+# real_4_ori = (W4_temp@reflect_ani)[:, 4]
 
-# real_0_ori = (W0_temp@reflect_iso)[:, 0]
-# real_1_ori = (W1_temp@reflect_iso)[:, 1]
-# real_2_ori = (W2_temp@reflect_iso)[:, 2]
-# real_3_ori = (W3_temp@reflect_iso)[:, 3]
-# real_4_ori = (W4_temp@reflect_iso)[:, 4]
+real_0_ori = (W0_temp@reflect_iso)[:, 0]
+real_1_ori = (W1_temp@reflect_iso)[:, 1]
+real_2_ori = (W2_temp@reflect_iso)[:, 2]
+real_3_ori = (W3_temp@reflect_iso)[:, 3]
+real_4_ori = (W4_temp@reflect_iso)[:, 4]
 
 # 不同角度子波组成矩阵（块5@5）
 W0 = np.hstack((W0_temp, W0_zero, W0_zero, W0_zero, W0_zero))
@@ -173,39 +176,59 @@ print("Wavelet amplitude: %f" % W_amplitude)
 print("Seismic amplitude / Wavelet amplitude: %f" % (real_amplitude/W_amplitude))
 
 ############################################################################################
-# 利用测井数据建立初始模型包括平滑
+# # 利用测井数据建立初始模型包括平滑 ani
+# data_init = blur_savgol.pandas_savgol(data, 151, 1)
+# model_Vp = data_init["Vp"]/1000
+# model_Vs = data_init["Vs"]/1000
+# model_rho = data_init["Rho"]
+# model_epsilon = data_init["Epsilon"]
+# model_delta = data_init["Delta"]
+# model_gamma = data_init["Gamma"]
+# model_eta = model_epsilon-model_delta
+# model_k = (2*model_Vs.mean()/model_Vp.mean())**2
+# model_coe0 = np.log(model_rho*model_Vp)
+# model_coe1 = np.log(model_rho*model_Vs**2*np.exp(model_eta/model_k))
+# model_coe2 = np.log(model_Vp*np.exp(model_epsilon))
+# model_init = np.hstack((model_coe0, model_coe1, model_coe2)).reshape(-1, 1) # 建立初始模型数据矩阵（平滑过的）
+# print("data loading over...")
+
+############################################################################################
+# 利用测井数据建立初始模型包括平滑 iso
 data_init = blur_savgol.pandas_savgol(data, 151, 1)
 model_Vp = data_init["Vp"]/1000
 model_Vs = data_init["Vs"]/1000
-model_rho = data_init["Rho"]
-model_epsilon = data_init["Epsilon"]
-model_delta = data_init["Delta"]
-model_gamma = data_init["Gamma"]
-model_eta = model_epsilon-model_delta
-model_k = (2*model_Vs.mean()/model_Vp.mean())**2
-model_coe0 = np.log(model_rho*model_Vp)
-model_coe1 = np.log(model_rho*model_Vs**2*np.exp(model_eta/model_k))
-model_coe2 = np.log(model_Vp*np.exp(model_epsilon))
+model_Rho = data_init["Rho"]
+model_k = model_Vs.mean()/model_Vp.mean()
+model_coe0 = np.log(model_Vp)
+model_coe1 = np.log(model_Vs)
+model_coe2 = np.log(model_Rho)
 model_init = np.hstack((model_coe0, model_coe1, model_coe2)).reshape(-1, 1) # 建立初始模型数据矩阵（平滑过的）
 print("data loading over...")
 
 ###########################################################################################
 # 利用井数据得到的真实值 m/s->km/s 各向异性
-dx, dy = data.shape
-t1 = np.random.normal(0, 1, dx)*0.01
-t2 = np.random.normal(0, 1, dx)*0.01
-t3 = np.random.normal(0, 1, dx)*0.01
-ani_Vp = data["Vp"]/1000+t1
-ani_Vs = data["Vs"]/1000+t2
-ani_rho = data["Rho"]+t3
-ani_epsilon = data["Epsilon"]
-ani_delta = data["Delta"]
-ani_gamma = data["Gamma"]
-ani_eta = ani_epsilon-ani_delta
-ani_k = (2*ani_Vs/ani_Vp)**2
-coe0 = ani_rho*ani_Vp
-coe1 = ani_rho*ani_Vs**2*np.exp(ani_eta/ani_k)
-coe2 = ani_Vp*np.exp(ani_epsilon)
+# dx, dy = data.shape
+# t1 = np.random.normal(0, 1, dx)*0.01
+# t2 = np.random.normal(0, 1, dx)*0.01
+# t3 = np.random.normal(0, 1, dx)*0.01
+# # ani
+# ani_Vp = data["Vp"]/1000+t1
+# ani_Vs = data["Vs"]/1000+t2
+# ani_rho = data["Rho"]+t3
+# ani_epsilon = data["Epsilon"]
+# ani_delta = data["Delta"]
+# ani_gamma = data["Gamma"]
+# ani_eta = ani_epsilon-ani_delta
+# ani_k = (2*ani_Vs/ani_Vp)**2
+# coe0 = ani_rho*ani_Vp
+# coe1 = ani_rho*ani_Vs**2*np.exp(ani_eta/ani_k)
+# coe2 = ani_Vp*np.exp(ani_epsilon)
+
+# iso
+coe0 = data["Vp"]/1000
+coe1 = data["Vs"]/1000
+coe2 = data["Rho"]
+iso_k = data["Vs"]/data["Vp"]
 
 # 纵波横波密度的协方差矩阵与正则化大矩阵
 if cov_lambda_method == 0:
@@ -229,23 +252,43 @@ D = convmtx(np.array([0, -1, 1]), (background.shape[0]))
 D = D[:-1, :]
 D = np.kron(np.eye(3), D)
 
-# Thomsen_zhang 横向各向同性计算反射系数
-if ani_k_given==0:
-    ani_k = (2*ani_Vs.mean()/ani_Vp.mean())**2
-elif ani_k_given==1:
-    ani_k = (np.array(ani_k)).reshape(-1, 1)[:-1]
+# # Thomsen_zhang 横向各向同性计算反射系数
+# if ani_k_given==0:
+#     ani_k = (2*ani_Vs.mean()/ani_Vp.mean())**2
+# elif ani_k_given==1:
+#     ani_k = (np.array(ani_k)).reshape(-1, 1)[:-1]
+# else:
+#     ani_k = np.array(ani_k)[:-1]
+#     gaussian_window = signal.gaussian(gaussian_well, std=standard)
+#     ani_k = (np.convolve(ani_k, gaussian_window, "same")/gaussian_window.sum()).reshape(-1, 1) # background velocity
+#     fig = plt.figure()
+#     ax1 = fig.add_subplot(121)
+#     ax1.plot(ani_k, np.arange(len(ani_k)))
+#     ax1.invert_yaxis()
+#     ax2 = fig.add_subplot(122)
+#     ax2.plot(gaussian_window)
+#     plt.show()
+# coef1, coef2, coef3 = 1/2*np.ones((theta.shape)), -ani_k/2*np.sin(theta)**2, np.tan(theta)**2/2
+# temp = np.ones((background.shape[0]-1, 1)) # （界面数为两个介质之间的一层故反射面总数减一）
+# coef1, coef2, coef3 = coef1*temp, coef2*temp, coef3*temp
+
+# Aki&Richard 各向同性计算反射系数
+if iso_k_given==0:
+    iso_k = iso_k.mean()
+elif iso_k_given==1:
+    iso_k = (np.array(iso_k)).reshape(-1, 1)[:-1]
 else:
-    ani_k = np.array(ani_k)[:-1]
+    iso_k = np.array(iso_k)[:-1]
     gaussian_window = signal.gaussian(gaussian_well, std=standard)
-    ani_k = (np.convolve(ani_k, gaussian_window, "same")/gaussian_window.sum()).reshape(-1, 1) # background velocity
+    iso_k = (np.convolve(iso_k, gaussian_window, "same")/gaussian_window.sum()).reshape(-1, 1) # background velocity
     fig = plt.figure()
     ax1 = fig.add_subplot(121)
-    ax1.plot(ani_k, np.arange(len(ani_k)))
+    ax1.plot(iso_k, np.arange(len(iso_k)))
     ax1.invert_yaxis()
     ax2 = fig.add_subplot(122)
     ax2.plot(gaussian_window)
     plt.show()
-coef1, coef2, coef3 = 1/2*np.ones((theta.shape)), -ani_k/2*np.sin(theta)**2, np.tan(theta)**2/2
+coef1, coef2, coef3 = (1+np.tan(theta)**2)/2, -8*iso_k**2*np.sin(theta)**2/2, (1-4*iso_k**2*np.sin(theta)**2)/2
 temp = np.ones((background.shape[0]-1, 1)) # （界面数为两个介质之间的一层故反射面总数减一）
 coef1, coef2, coef3 = coef1*temp, coef2*temp, coef3*temp
 

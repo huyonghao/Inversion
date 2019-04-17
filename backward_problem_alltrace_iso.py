@@ -17,21 +17,29 @@ import segyio
 
 ##########################################################################################
 # 参数修改在此处
-# top, bottom, trace_beg, trace_end = 1500, 1850, 0, 2191
-# top, bottom, trace_beg, trace_end = 1300, 1900, 425, 426
-top, bottom, trace_beg, trace_end = 1300, 1900, 1695, 1696
-method = 0 # method{0:"conjugate", 1:"gauss_newton"}
-cov_lambda_method = 1 # method{0:"const_number", 1:"3well_data", 2:"3initial_data", 3:"3other_data"}
+top, bottom, trace_beg, trace_end = 1300, 1885, 0, 2191
+# top, bottom, trace_beg, trace_end = 1300, 1885, 425, 426
+# top, bottom, trace_beg, trace_end = 1300, 1885, 1695, 1696
+method = 1 # method{0:"conjugate", 1:"gauss_newton"}
+cov_lambda_method = 3 # method{0:"const_number", 1:"3well_data", 2:"3initial_data", 3:"3other_data"}
+# cov_mat_iso = np.array([[7.6455076e-03, 7.3234964e-03, 5.0318266e-05],
+#                         [7.3234964e-03, 8.2397042e-03, 1.5111740e-04],
+#                         [5.0318266e-05, 1.5111740e-04, 1.0689176e-03]])
+cov_mat_iso = np.array([[1, 0, 0],
+                        [0, 1, 0],
+                        [0, 0, 1]])
 print_process = 0 # method{0:"don't display", 1:"display"}
-sigma = np.array([1, 1, 1])*0.0001*0
+# sigma = np.array([0.05, 0.01, 0.001])*100
+sigma = np.array([100, 1, 10])*0.0001
 iso_k_given = 0 # 为固定值时情况(取值不为0代表使用背景速度)
 gaussian_well = 50 # 高斯平滑时窗（背景速度平滑）
-standard = 20 # 高斯分布标准差
+standard = 5 # 高斯分布标准差
 trc = 0
 step = 1 # 迭代步长
-niter = 50 # iterative numbers
-normal_method = 0 # 0表示不地震记录与子波标准化，1表示标准化
-ratio = 0.035952 # 真实记录振幅于子波振幅大小之比
+niter = 10 # iterative numbers
+normal_method = 1 # 0表示不地震记录与子波标准化，1表示标准化
+ratio = 0.0035952 # 真实记录振幅于子波振幅大小之比
+# data = pd.DataFrame(pd.read_csv("D:\\Physic_Model_Data\\line1_05.csv"))
 data = pd.DataFrame(pd.read_csv("D:\\Physic_Model_Data\\line1_025.csv"))
 del data["Unnamed: 0"]
 
@@ -70,11 +78,11 @@ print("Loading Data...") # L1
 # real_4_ori = segyio.tools.cube("D:\\Physic_Model_Data\\cdp_stack41.sgy")[0,:,:].T
 
 # # 传入真实地震数据 0
-real_0_ori = segyio.tools.cube("D:\\Physic_Model_Data\\01-08.sgy")[0,:,:].T
-real_1_ori = segyio.tools.cube("D:\\Physic_Model_Data\\08-15.sgy")[0,:,:].T
-real_2_ori = segyio.tools.cube("D:\\Physic_Model_Data\\15-22.sgy")[0,:,:].T
-real_3_ori = segyio.tools.cube("D:\\Physic_Model_Data\\22-29.sgy")[0,:,:].T
-real_4_ori = segyio.tools.cube("D:\\Physic_Model_Data\\29-36.sgy")[0,:,:].T
+real_0_ori = segyio.tools.cube("D:\\Physic_Model_Data\\stack01-08.sgy")[0,:,:].T
+real_1_ori = segyio.tools.cube("D:\\Physic_Model_Data\\stack08-15.sgy")[0,:,:].T
+real_2_ori = segyio.tools.cube("D:\\Physic_Model_Data\\stack15-22.sgy")[0,:,:].T
+real_3_ori = segyio.tools.cube("D:\\Physic_Model_Data\\stack22-29.sgy")[0,:,:].T
+real_4_ori = segyio.tools.cube("D:\\Physic_Model_Data\\stack29-36.sgy")[0,:,:].T
 
 # # 传入真实地震数据 2
 # real_0_ori = segyio.tools.cube("D:\\Physic_Model_Data\\L_1.prj\\seismic.dir\\L1_cdp_stack_02_10.sgy")[0,:,:].T
@@ -298,6 +306,14 @@ def cov_mat4(sigma, cov_mat):
     I_lam = np.kron(lam@linalg.inv(cov_mat), np.eye(background.shape[0]))
     return I_lam
 
+def cov_mat5(sigma, cov_mat):
+    '''
+    协方差矩阵，传入的必须为列表和3@3矩阵
+    '''
+    lam = np.diag(sigma)
+    I_lam = np.kron(lam@linalg.inv(cov_mat), np.eye(background.shape[0]))
+    return I_lam
+
 ###########################################################################################
 # 反演范围
 # top, bottom, trace_beg, trace_end = 1500, 1850, 200, 1900
@@ -314,12 +330,9 @@ dx, dy = data.shape
 t1 = np.random.normal(0, 1, dx)
 t2 = np.random.normal(0, 1, dx)
 t3 = np.random.normal(0, 1, dx)
-data["Vp"] = data["Vp"]+t1*1
-data["Vs"] = data["Vs"]+t2*1
-data["Rho"] = data["Rho"]+t3*0.01
-
-# 井测得真实值 m/s->km/s
-well_real = np.hstack((np.log(data["Vp"]/1000), np.log(data["Vs"]/1000), np.log(data["Rho"])))
+data["Vp"] = data["Vp"]+t1*0
+data["Vs"] = data["Vs"]+t2*0
+data["Rho"] = data["Rho"]+t3*0
 
 ############################################################################################
 # 反演单个参数的图像背景大小
@@ -398,7 +411,7 @@ elif cov_lambda_method == 1:
 elif cov_lambda_method == 2:
     I_lam = cov_mat4(sigma, cov_mat_iso)
 elif cov_lambda_method == 3:
-    I_lam = cov_mat(sigma)
+    I_lam = cov_mat5(sigma, cov_mat_iso) # 法四
 else:
     print("wrong prameters!")
     time.sleep(3)
@@ -422,13 +435,13 @@ else:
     iso_k = np.array(((data["Vs"])/(data["Vp"])))[:-1]
     gaussian_window = signal.gaussian(gaussian_well, std=standard)
     iso_k = (np.convolve(iso_k, gaussian_window, "same")/gaussian_window.sum()).reshape(-1, 1) # background velocity
-    fig = plt.figure()
-    ax1 = fig.add_subplot(121)
-    ax1.plot(iso_k, np.arange(len(iso_k)))
-    ax1.invert_yaxis()
-    ax2 = fig.add_subplot(122)
-    ax2.plot(gaussian_window)
-    plt.show()
+    # fig = plt.figure()
+    # ax1 = fig.add_subplot(121)
+    # ax1.plot(iso_k, np.arange(len(iso_k)))
+    # ax1.invert_yaxis()
+    # ax2 = fig.add_subplot(122)
+    # ax2.plot(gaussian_window)
+    # plt.show()
 coef1, coef2, coef3 = (1+np.tan(theta)**2)/2, -8*iso_k**2*np.sin(theta)**2/2, (1-4*iso_k**2*np.sin(theta)**2)/2
 temp = np.ones((background.shape[0]-1, 1))
 coef1, coef2, coef3 = coef1*temp, coef2*temp, coef3*temp
@@ -553,7 +566,7 @@ elif method == 1:
             # m = m+linalg.inv(F_T@F+I_lam)@F_T@r*step
             # m = m+linalg.inv(F_T@F+I_lam2)@F_T@r*step
             error = np.sqrt(np.vdot(r, r))
-            print("total progress={:2.2f}%, steps={:2d}, error={:.4f}".format(progress*100/total, i, error))
+            # print("total progress={:2.2f}%, steps={:2d}, error={:.4f}".format(progress*100/total, i, error))
         background[:, progress] = m.flatten()
         print("total progress={:2.2f}%".format(progress*100/total))   
 
@@ -592,7 +605,6 @@ np.save("D:\\Physic_Model_Data\\iso_zs.npy", zs)
 # 绘图 各向同性
 fig = plt.figure()
 ax0a = fig.add_subplot(131)
-# l_vp_well, = ax0a.plot(np.exp(well_real[0:nmat]), nsamples, 'k', lw=1, label="well_data")
 l_vp_well, = ax0a.plot(data["Vp"]/1000, nsamples, 'k', lw=1, label="well_data")
 l_vp_inv, = ax0a.plot(np.exp(background[0:nmat, trc]), nsamples, 'k', color="red", lw=1, label="inversion")
 l_vp_init, = ax0a.plot(model[0:nmat, trc], nsamples, 'k', color="blue", lw=1, label="initial_model") #注意单位km/s
@@ -607,7 +619,6 @@ plt.legend()
 ax0a.grid()
 
 ax0b = fig.add_subplot(132)
-# l_vs_well, = ax0b.plot(np.exp(well_real[nmat:2*nmat]), nsamples, 'k', lw=1, label="well_data")
 l_vs_well, = ax0b.plot(data["Vs"]/1000, nsamples, 'k', lw=1, label="well_data")
 l_vs_inv, = ax0b.plot(np.exp(background[nmat:2*nmat, trc]), nsamples, 'k', color="red", lw=1, label="inversion")
 l_vs_init, = ax0b.plot(model[nmat:2*nmat, trc], nsamples, 'k', color="blue", lw=1, label="initial_model") #注意单位km/s
@@ -622,7 +633,6 @@ plt.legend()
 ax0b.grid()
 
 ax0c = fig.add_subplot(133)
-# l_rho_well, = ax0c.plot(np.exp(well_real[2*nmat:3*nmat]), nsamples, 'k', lw=1, label="well_data")
 l_rho_well, = ax0c.plot(data["Rho"], nsamples, 'k', lw=1, label="well_data")
 l_rho_inv, = ax0c.plot(np.exp(background[2*nmat:3*nmat, trc]), nsamples, 'k', color="red", lw=1, label="inversion")
 l_rho_init, = ax0c.plot(model[2*nmat:3*nmat, trc], nsamples, 'k', color="blue", lw=1, label="initial_model")
